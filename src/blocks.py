@@ -23,8 +23,15 @@ class Block():
         appended_hash_ids = ','.join(map(str, re)).encode('utf-8')
         return hashlib.sha256(appended_hash_ids).hexdigest()
 
+
     def validator(self, tasks):
-        pass
+        #TODO : add more complete validation
+        trx_hash = self.hash_gen(tasks=tasks)
+        if tnx_hash == self.hash: 
+            return True 
+        return False
+
 
     def view_blocks(self):
-        pass
+        print(self.id)
+        print(self.trxs)
