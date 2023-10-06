@@ -13,8 +13,5 @@ class Block():
     def validator(self, tasks):
         pass
 
-
     def view_blocks(self):
         pass
-
-    
