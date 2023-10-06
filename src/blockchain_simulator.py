@@ -118,22 +118,97 @@ class node():
 
 
     def node_creater(self):
-        pass
+        global nodelist
+        if config['load_csv']==1:
+            global node_network
+            node_network,nodelist=csv_loader()
+
+        else:
+            nodelist= random.sample(range(1000,1000+config['n_nodes']),config['n_nodes'])
+            node_network=network_creator(nodelist,config['max_latency'])
+        
+        global node_map
+        node_map = [nodes(each) for each in nodelist]
+
+        if config['consensus']=="POW":
+            n_sealer=config['POW']['sealer_number']
+            sealer_nodes=np.random.choice(node_map,n_sealer,replace=False)
+            for each in sealer_nodes:
+                each.sealer_flag=1
 
 
     def trx_generator(self):
-        pass
+        global txID
+        txID = 2300
+        while True:
+            TX_SIZE = random.gauss(config['mean_tx_size'],config['sd_tx_size'])
+            TX_GAS = random.gauss(config['mean_tx_gas'],config['sd_tx_gas'])
+            
+            txID  += 1
+            transaction = Transaction(TX_GAS,TX_SIZE,txID)
+            node=100
+            for i in node_map:
+                if i.nodeID==node:
+                    print("%d, %d, Appended, Transaction, %d"%(env.now,i.nodeID,txID))
+                    logger.debug("%d, %d,Appended, Transaction, %d"%(env.now,i.nodeID,txID))
+                    i.add_transaction(transaction)
+            yield env.timeout(random.gauss(config['mean_tx_generation'],config['sd_tx_generation']))
+
 
     def monitoring(env):
-        pass
+        prev_tx = 2300
+        prev_block = 99900
+        avg_pending_tx= 0
+        while True:
+            yield env.timeout(10)
+            message_count_logger.info("%d,%d"%(env.now,MESSAGE_COUNT))
+            avg_tx= txID-prev_tx
+            prev_tx=txID
+
+            avg_block= BLOCKID-prev_block
+            prev_block=BLOCKID
+            block_creation_logger.info("%d,%d"%(env.now,avg_block))
+            
+            for each in node_map:
+                avg_pending_tx+= len(each.pendingpool)
+            average= avg_pending_tx
+            pending_transaction_logger.info("%d,%d"%(env.now,average))        
+            avg_pending_tx=0
+
+            hash_list = set()
+            len_list = set()
+            for each in node_map:
+                len_list.add(len(each.block_list))
+                for block in each.block_list:
+                    hash_list.add(block.hash)
+                
+            unique_block_logger.info("%d,%d"%(env.now,len(hash_list)))
 
 
     def POA(env):
-        pass
+         while True:
+            sealer=random.choice(node_map)
+            print("Selected %d as a sealer"%sealer.nodeID)
+            yield env.timeout(150)
+            env.process(sealer.create_block())
 
-go
+    if __name__== "__main__":
 
+        with open('config/config.json') as json_data:
+            config= json.load(json_data)
+        env=simpy.Environment()
+        message_count_logger,block_creation_logger,unique_block_logger,pending_transaction_logger,logger,block_stability_logger=creater_logger()
+        start_time = time.time()
+        node_generator(env)
+        env.process(trans_generator(env))
 
+        env.process(POA(env))
+        env.run(until=config['sim_time'])
+        elapsed_time = time.time() - start_time
+        print("----------------------------------------------------")
+        print("Simulation ended")
+        logger.info("Simulation ended")
+        print("Total Time taken %d:"%elapsed_time)
 
 
 
