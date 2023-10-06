@@ -1,5 +1,3 @@
-
-
 class Block():
     def __init__(self, size, id, trxs, node, prev_hash):
         pass
